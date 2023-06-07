@@ -1,5 +1,6 @@
 <use name="RecoLocalTracker/SiStripRecHitConverter"/>
 <use name="DataFormats/SiStripCluster"/>
+<use name="DataFormats/GeometryVector"/>
 <use name="CalibTracker/Records"/>
 <use   name="root"/>
 <use   name="rootcore"/>
