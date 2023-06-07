@@ -76,6 +76,8 @@ private:
   edm::ESGetToken<TrackerGeometry, TrackerDigiGeometryRecord> geomToken_;
   std::map<uint32_t, int> detIdToSequentialNumber_;
   int sequentialNumber_;
+  unsigned int  maxId;
+  unsigned int minId;
   TH2F* recHitPositionHist_;
   TH3F* clusterShapeHist_;
   TH2F* recHitErrorsHist_;
@@ -93,6 +95,8 @@ RecHitAnalyzer::RecHitAnalyzer(const edm::ParameterSet& iConfig)
    geomToken_(esConsumes<TrackerGeometry, TrackerDigiGeometryRecord>()){
   //now do what ever initialization is needed
   sequentialNumber_ = 0;
+  maxId= 0;
+  minId= 10000000;
   recHitPositionHist_ = nullptr;
   clusterShapeHist_ = nullptr;
   recHitErrorsHist_ = nullptr;
@@ -139,16 +143,15 @@ void RecHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 	//LocalPoint localPos = recHit.localPosition();
 	//LocalError localPosError = recHit.localPositionError();
 
-	// search detId as a key in the map detIdToSequentialNumber_
-
+	// Check if the detId is already mapped, if not, assign a sequential number
         if (detIdToSequentialNumber_.find(detId) == detIdToSequentialNumber_.end()) {                                                                                          
-          sequentialId = sequentialNumber_;                                                                                                                                         
-          detIdToSequentialNumber_[detId] = sequentialId;                                                                                                                       
-          sequentialNumber_++;                                                                                                                                                                         
-        } else {                                                                                                                                                                                       
-          sequentialId = detIdToSequentialNumber_[detId];                                                                                                                                              
-        }              
-	std::cout << "DetId_hits: " << detId << std::endl;
+          sequentialId = sequentialNumber_++; // Get the current size as the sequential number                                                                          
+	  detIdToSequentialNumber_[detId] = sequentialId;                                                      
+        }                                                                                        
+	else{
+	  sequentialId = detIdToSequentialNumber_[detId];
+	}
+	std::cout << "DetId of each RecHits: " << detId << " Sequential Number: " << sequentialId  << std::endl;
 	std::cout << "Local position (x, y): " << x << ", " << y << std::endl;
 	std::cout << "Global position (x, y, z): " << xGlobal << ", " << yGlobal << ", " << zGlobal <<std::endl;
 	std::cout << "Local position errors (x, y): " << xErr << ", " << yErr << std::endl;
@@ -157,11 +160,10 @@ void RecHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 	plotRecHitPosition(x, y);
 	plotRecHitGlobalPosition(xGlobal, yGlobal, zGlobal);
 	plotClusterShape(*recHit.cluster(),sequentialId);
-	plotRecHitErrors(x, y, xErr, yErr);
-	// Plot the DetId mapping                                                                                                                                                                       
-	plotDetIdMapping(detIdToSequentialNumber_);
+	plotRecHitErrors(x, y, xErr, yErr);                                                                                                                                                                     
       }
     }
+      plotDetIdMapping(detIdToSequentialNumber_);
 }
 
 
@@ -201,15 +203,18 @@ void RecHitAnalyzer::plotRecHitGlobalPosition(const float xGlobal, const float y
 
     void RecHitAnalyzer::plotDetIdMapping(std::map<uint32_t, int> detIdToSequentialNumber_) {
       // Plot the DetId mapping (2D plot)
+      
       for (const auto& pair : detIdToSequentialNumber_) {
 	detIdMappingHist_->Fill(pair.second, pair.first);
+	if(pair.first > maxId) maxId = pair.first;
+	if(pair.first < minId) minId = pair.first;
       }
       
     }
     // ------------ method called once each job just before starting event loop  ------------
     void RecHitAnalyzer::beginJob() {
       
-      detIdMappingHist_ = new TH2F("detIdMappingHist", "DetId Mapping", sequentialNumber_, 0, sequentialNumber_, 1000, 0, 5);
+      detIdMappingHist_ = new TH2F("detIdMappingHist", "DetId Mapping", sequentialNumber_, 0, sequentialNumber_, maxId - minId, minId, maxId);
       detIdMappingHist_->GetXaxis()->SetTitle("Sequential Number");
       detIdMappingHist_->GetYaxis()->SetTitle("DetId");
 
@@ -221,7 +226,7 @@ void RecHitAnalyzer::plotRecHitGlobalPosition(const float xGlobal, const float y
       recHitPositionHist_->GetXaxis()->SetTitle("x (mm)");
       recHitPositionHist_->GetYaxis()->SetTitle("y (mm)");
       
-      recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 400, -200.0, 200.0);
+      recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 600, -300.0, 300.0);
       recHitPositionGlobalHist_->GetXaxis()->SetTitle("x (mm)");
       recHitPositionGlobalHist_->GetYaxis()->SetTitle("y (mm)");
       recHitPositionGlobalHist_->GetZaxis()->SetTitle("z (mm)");
