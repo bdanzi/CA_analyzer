@@ -68,6 +68,8 @@ private:
   void plotRecHitGlobalPosition(const float xGlobal, const float yGlobal, const float zGlobal);
   void plotRecHitErrors(const float x, const float y, const float xErr, const float yErr);
   void plotDetIdMapping( std::map<uint32_t, int> detIdToSequentialNumber_);
+  void plotProjectionsGlobalPosition();
+  void plotProjectionsClusterShape();
   void endJob() override;
 
   // ----------member data ---------------------------
@@ -167,7 +169,61 @@ void RecHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 }
 
 
+void RecHitAnalyzer::plotProjectionsGlobalPosition() {
+  TCanvas* canvas_PlotGlobalPositionProjections = new TCanvas("PlotGlobalPositionProjections", "Projections", 1200, 400);
+  canvas_PlotGlobalPositionProjections->Divide(3, 1); // Divide the canvas into 3 sub-pads
+  // Plot the projection on the XY plane
+  canvas_PlotGlobalPositionProjections->cd(1);
+  TH2D* projXY = dynamic_cast<TH2D*>(recHitPositionGlobalHist_->Project3D("xy"));
+  projXY->Draw("COLZ");
 
+  // Plot the projection on the XZ plane
+  canvas_PlotGlobalPositionProjections->cd(2);
+  TH2D* projXZ = dynamic_cast<TH2D*>(recHitPositionGlobalHist_->Project3D("xz"));
+  projXZ->Draw("COLZ");
+
+  // Plot the projection on the YZ plane
+  canvas_PlotGlobalPositionProjections->cd(3);
+  TH2D* projYZ = dynamic_cast<TH2D*>(recHitPositionGlobalHist_->Project3D("yz"));
+  projYZ->Draw("COLZ");
+
+  // Save the canvas as an image file
+  canvas_PlotGlobalPositionProjections->SaveAs("projectionsGlobalPosition.png");
+
+  // Clean up memory
+  delete canvas_PlotGlobalPositionProjections;
+  delete projXY;
+  delete projXZ;
+  delete projYZ;
+}
+
+void RecHitAnalyzer::plotProjectionsClusterShape() {
+  TCanvas* canvas = new TCanvas("PlotClusterShapeProjections", "Cluster Shape Projections", 1200, 400);
+  canvas->Divide(3, 1); // Divide the canvas into 3 sub-pads                                                                                                                         
+  // Plot the projection on the XY plane                                                                                                                                             
+  canvas->cd(1);
+  TH2D* projXY = dynamic_cast<TH2D*>(clusterShapeHist_->Project3D("xy"));
+  projXY->Draw("COLZ");
+
+  // Plot the projection on the XZ plane                                                                                                                                             
+  canvas->cd(2);
+  TH2D* projXZ = dynamic_cast<TH2D*>(clusterShapeHist_->Project3D("xz"));
+  projXZ->Draw("COLZ");
+
+  // Plot the projection on the YZ plane                                                                                                                                             
+  canvas->cd(3);
+  TH2D* projYZ = dynamic_cast<TH2D*>(clusterShapeHist_->Project3D("yz"));
+  projYZ->Draw("COLZ");
+
+  // Save the canvas as an image file                                                                                                                                                
+  canvas->SaveAs("projectionsClusterShape.png");
+
+  // Clean up memory                                                                                                                                                                 
+  delete canvas;
+  delete projXY;
+  delete projXZ;
+  delete projYZ;
+}
 void RecHitAnalyzer::plotClusterShape(const SiStripCluster& cluster, const int sequentialId) {
   // Plot the cluster shape (3D plot)
       auto  amplitudes = cluster.amplitudes();
@@ -226,7 +282,7 @@ void RecHitAnalyzer::plotRecHitGlobalPosition(const float xGlobal, const float y
       recHitPositionHist_->GetXaxis()->SetTitle("x (mm)");
       recHitPositionHist_->GetYaxis()->SetTitle("y (mm)");
       
-      recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 600, -300.0, 300.0);
+      recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 600, -700.0, 700.0);
       recHitPositionGlobalHist_->GetXaxis()->SetTitle("x (mm)");
       recHitPositionGlobalHist_->GetYaxis()->SetTitle("y (mm)");
       recHitPositionGlobalHist_->GetZaxis()->SetTitle("z (mm)");
@@ -248,12 +304,14 @@ void RecHitAnalyzer::plotRecHitGlobalPosition(const float xGlobal, const float y
       TCanvas* canvas_recHitErrors = new TCanvas("canvas_recHitErrors", "RecHit Errors", 800, 600);
       TCanvas* canvas_clusterShapeHist = new TCanvas("canvas_clusterShapeHist", "Cluster Shape", 1000, 600);
       TCanvas* canvas_recHitPositionGlobalHist = new TCanvas("canvas_recHitPositionGlobalHist", "Global Position Strip Rec Hits", 1000, 600);
+      plotProjectionsGlobalPosition();
+      plotProjectionsClusterShape();
 
       canvas_recHitPosition->cd();
-      // Draw the histogram on the canvas                                                                                                                                            
+      // Draw the histogram on the canvas                                                                                                                                          
       recHitPositionHist_->Draw("hist");
-      // Save the canvas as a PNG image                                                                                                                                                 
-      canvas_recHitPosition->SaveAs("recHitPosition.png");                                                                                                                                    delete canvas_recHitPosition;
+      // Save the canvas as a PNG image                                                                                                                                        
+      canvas_recHitPosition->SaveAs("recHitPosition.png");                                                                                                                                delete canvas_recHitPosition;
 
       // Draw the histogram on the canvas                                                    
       canvas_recHitPositionGlobalHist->cd();                                                                                           

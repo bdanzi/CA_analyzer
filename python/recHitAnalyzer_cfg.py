@@ -28,8 +28,8 @@ process.myConverter = cms.EDProducer("SiStripRecHitConverter",
 
 process.RecHitAnalyzerHelp = cms.EDAnalyzer("RecHitAnalyzer",
     recHits = cms.InputTag("siStripClusters"),
-#    recHitCollection = cms.InputTag("myConverter", "rphiRecHit")
-    recHitCollection = cms.InputTag("myConverter", "stereoRecHit")
+    recHitCollection = cms.InputTag("myConverter", "rphiRecHit")
+#    recHitCollection = cms.InputTag("myConverter", "stereoRecHit")
 )
 
 process.p = cms.Path(process.myConverter * process.RecHitAnalyzerHelp)
