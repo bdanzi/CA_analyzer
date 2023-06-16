@@ -11,12 +11,13 @@ process.load('Configuration.StandardSequences.EndOfProcess_cff')
 # CALIBRATION                                                                                                                                                                                              
 #-------------------------------------------------                                                                                                                                                         
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.GlobalTag.globaltag = "124X_dataRun3_v10"
+#process.GlobalTag.globaltag = "124X_dataRun3_v10"
+process.GlobalTag.globaltag = "131X_mcRun3_2023_realistic_v3"
 process.es_prefer_GlobalTag = cms.ESPrefer('PoolDBESSource','GlobalTag')
 
 process.source = cms.Source("PoolSource",
     # Input file(s)
-    fileNames = cms.untracked.vstring("file:step3.root")
+    fileNames = cms.untracked.vstring("file:step3_withPU.root")
 )
 process.myConverter = cms.EDProducer("SiStripRecHitConverter",
     ClusterProducer = cms.InputTag("siStripClusters"),
@@ -28,8 +29,8 @@ process.myConverter = cms.EDProducer("SiStripRecHitConverter",
 
 process.RecHitAnalyzerHelp = cms.EDAnalyzer("RecHitAnalyzer",
     recHits = cms.InputTag("siStripClusters"),
-    recHitCollection = cms.InputTag("myConverter", "rphiRecHit")
-#    recHitCollection = cms.InputTag("myConverter", "stereoRecHit")
+#    recHitCollection = cms.InputTag("myConverter", "rphiRecHit")
+    recHitCollection = cms.InputTag("myConverter", "stereoRecHit")
 )
 
 process.p = cms.Path(process.myConverter * process.RecHitAnalyzerHelp)

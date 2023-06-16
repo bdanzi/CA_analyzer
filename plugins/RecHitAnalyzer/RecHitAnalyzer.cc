@@ -34,6 +34,7 @@
 #include "TH2F.h"
 #include "TH3F.h"
 #include "TGraphErrors.h"
+#include "TGraph.h"
 #include "TStyle.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/Utilities/interface/InputTag.h"
@@ -82,8 +83,8 @@ private:
   unsigned int minId;
   TH2F* recHitPositionHist_;
   TH3F* clusterShapeHist_;
+  TGraph* detIdMappingHist_;
   TH2F* recHitErrorsHist_;
-  TH2F* detIdMappingHist_;
   TH3F* recHitPositionGlobalHist_;
 };
 
@@ -99,10 +100,10 @@ RecHitAnalyzer::RecHitAnalyzer(const edm::ParameterSet& iConfig)
   sequentialNumber_ = 0;
   maxId= 0;
   minId= 10000000;
+  detIdMappingHist_ = nullptr;
   recHitPositionHist_ = nullptr;
   clusterShapeHist_ = nullptr;
   recHitErrorsHist_ = nullptr;
-  detIdMappingHist_ = nullptr;
   recHitPositionGlobalHist_ = nullptr;
 }
 
@@ -129,43 +130,39 @@ void RecHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
       for (const auto& detSetPair : *recHitHandle) {
 	const auto& detSet = detSetPair;
     	for (const auto& recHit : detSet) {
-	const StripGeomDetUnit* theStripDet = dynamic_cast<const StripGeomDetUnit*>(theTrackerGeometry->idToDet(recHit.geographicalId()));
-	// Access information from SiStripRecHit2D                                                                     
-	float x = recHit.localPosition().x();
-	float y = recHit.localPosition().y();
-	float xErr = sqrt(recHit.localPositionError().xx());
-	float yErr = sqrt(recHit.localPositionError().yy());
-	//auto detId_geographicalId = recHit.geographicalId();
-	//int detId = detId_geographicalId.rawId();
-	int detId = theStripDet->geographicalId().rawId();
-	int sequentialId = 0;                                                                                                                                                               float xGlobal = theStripDet->toGlobal(recHit.localPosition()).x();
-	float yGlobal = theStripDet->toGlobal(recHit.localPosition()).y();
-	float zGlobal = theStripDet->toGlobal(recHit.localPosition()).z();
-
-	//LocalPoint localPos = recHit.localPosition();
-	//LocalError localPosError = recHit.localPositionError();
-
-	// Check if the detId is already mapped, if not, assign a sequential number
-        if (detIdToSequentialNumber_.find(detId) == detIdToSequentialNumber_.end()) {                                                                                          
-          sequentialId = sequentialNumber_++; // Get the current size as the sequential number                                                                          
-	  detIdToSequentialNumber_[detId] = sequentialId;                                                      
-        }                                                                                        
-	else{
-	  sequentialId = detIdToSequentialNumber_[detId];
-	}
-	std::cout << "DetId of each RecHits: " << detId << " Sequential Number: " << sequentialId  << std::endl;
-	std::cout << "Local position (x, y): " << x << ", " << y << std::endl;
-	std::cout << "Global position (x, y, z): " << xGlobal << ", " << yGlobal << ", " << zGlobal <<std::endl;
-	std::cout << "Local position errors (x, y): " << xErr << ", " << yErr << std::endl;
-	
-	// Plot the recHit position, cluster shape, recHit errors, and DetId mapping                                                                                                                     
-	plotRecHitPosition(x, y);
-	plotRecHitGlobalPosition(xGlobal, yGlobal, zGlobal);
-	plotClusterShape(*recHit.cluster(),sequentialId);
-	plotRecHitErrors(x, y, xErr, yErr);                                                                                                                                                                     
+	  const StripGeomDetUnit* theStripDet = dynamic_cast<const StripGeomDetUnit*>(theTrackerGeometry->idToDet(recHit.geographicalId()));
+	  // Access information from SiStripRecHit2D                                                                     
+	  float x = recHit.localPosition().x();
+	  float y = recHit.localPosition().y();
+	  float xErr = sqrt(recHit.localPositionError().xx());
+	  float yErr = sqrt(recHit.localPositionError().yy());
+	  int detId = theStripDet->geographicalId().rawId();
+	  int sequentialId = 0;                                                                                                                                   float xGlobal = theStripDet->toGlobal(recHit.localPosition()).x();
+	  float yGlobal = theStripDet->toGlobal(recHit.localPosition()).y();
+	  float zGlobal = theStripDet->toGlobal(recHit.localPosition()).z();
+	  
+	  
+	  // Check if the detId is already mapped, if not, assign a sequential number
+	  if (detIdToSequentialNumber_.find(detId) == detIdToSequentialNumber_.end()) {                                                                                          
+	    sequentialId = sequentialNumber_++; // Get the current size as the sequential number                                                        
+	    detIdToSequentialNumber_[detId] = sequentialId;                                                      
+	  }                                                                                        
+	  else{
+	    sequentialId = detIdToSequentialNumber_[detId];
+	  }
+	  /*Std::cout << "DetId of each RecHits: " << detId << " Sequential Number: " << sequentialId  << std::endl;
+	  std::cout << "Local position (x, y): " << x << ", " << y << std::endl;
+	  std::cout << "Global position (x, y, z): " << xGlobal << ", " << yGlobal << ", " << zGlobal <<std::endl;
+	  std::cout << "Local position errors (x, y): " << xErr << ", " << yErr << std::endl;*/
+	  
+	  // Plot the recHit position, cluster shape, recHit errors, and DetId mapping                                                                                                                     
+	  plotRecHitPosition(x, y);
+	  plotRecHitGlobalPosition(xGlobal, yGlobal, zGlobal);
+	  plotClusterShape(*recHit.cluster(),sequentialId);
+	  plotRecHitErrors(x, y, xErr, yErr);}
+	  
       }
-    }
-      plotDetIdMapping(detIdToSequentialNumber_);
+
 }
 
 
@@ -243,115 +240,126 @@ void RecHitAnalyzer::plotClusterShape(const SiStripCluster& cluster, const int s
     }
 
 void RecHitAnalyzer::plotRecHitGlobalPosition(const float xGlobal, const float yGlobal, const float zGlobal) {
-
+  
   // Plot the recHit position (3D plot)                                                                                                                                              
   recHitPositionGlobalHist_->Fill(xGlobal, yGlobal, zGlobal);
 
 }
 
 
-    void RecHitAnalyzer::plotRecHitErrors(const float x, const float y, const float xErr, const float yErr) {
-      
-      // Plot the recHit errors (2D plot)
-      recHitErrorsHist_->Fill(xErr, yErr);
-    
-    }
+void RecHitAnalyzer::plotRecHitErrors(const float x, const float y, const float xErr, const float yErr) {
+  
+  // Plot the recHit errors (2D plot)
+  recHitErrorsHist_->Fill(xErr, yErr);
+  
+}
 
-    void RecHitAnalyzer::plotDetIdMapping(std::map<uint32_t, int> detIdToSequentialNumber_) {
-      // Plot the DetId mapping (2D plot)
-      
-      for (const auto& pair : detIdToSequentialNumber_) {
-	detIdMappingHist_->Fill(pair.second, pair.first);
-	if(pair.first > maxId) maxId = pair.first;
-	if(pair.first < minId) minId = pair.first;
-      }
-      
-    }
-    // ------------ method called once each job just before starting event loop  ------------
-    void RecHitAnalyzer::beginJob() {
-      
-      detIdMappingHist_ = new TH2F("detIdMappingHist", "DetId Mapping", sequentialNumber_, 0, sequentialNumber_, maxId - minId, minId, maxId);
-      detIdMappingHist_->GetXaxis()->SetTitle("Sequential Number");
-      detIdMappingHist_->GetYaxis()->SetTitle("DetId");
+void RecHitAnalyzer::plotDetIdMapping(std::map<uint32_t, int> detIdToSequentialNumber_) {
+  // Plot the DetId mapping (2D plot) : First find limits of the histo
+  for (const auto& pair : detIdToSequentialNumber_) {
+    //std::cout << "DetId of each RecHits: " << pair.first << " Sequential Number: " << pair.second  << std::endl;
+    detIdMappingHist_->SetPoint(detIdMappingHist_->GetN(),pair.second, pair.first);
+  }
+}
+// ------------ method called once each job just before starting event loop  ------------
+void RecHitAnalyzer::beginJob() {
+  
+  recHitErrorsHist_ = new TH2F("recHitErrorsHist", "RecHit Errors", 100, -0.001, 0.2, 500, -0.5, 30.0);
+  recHitErrorsHist_->GetXaxis()->SetTitle("x [cm]");
+  recHitErrorsHist_->GetYaxis()->SetTitle("y [cm]");
+  
+  recHitPositionHist_ = new TH2F("recHitPositionHist", "RecHit Position", 100, -5.5, 5.5, 100, -1.0, 1.0);
+  recHitPositionHist_->GetXaxis()->SetTitle("x [cm]");
+  recHitPositionHist_->GetYaxis()->SetTitle("y [cm]");
+  
+  recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 600, -700.0, 700.0);
+  recHitPositionGlobalHist_->GetXaxis()->SetTitleOffset(1.5);
+  recHitPositionGlobalHist_->GetYaxis()->SetTitleOffset(1.5);
+  recHitPositionGlobalHist_->GetZaxis()->SetTitleOffset(1.5);
+  recHitPositionGlobalHist_->GetXaxis()->SetTitle("x [cm]");
+  recHitPositionGlobalHist_->GetYaxis()->SetTitle("y [cm]");
+  recHitPositionGlobalHist_->GetZaxis()->SetTitle("z [cm]");
+  
+  clusterShapeHist_ = new TH3F("clusterShapeHist", "Cluster Shape", 5000, 0, 5000, 256, 0, 256, 40, 0, 40);
+  clusterShapeHist_->GetXaxis()->SetTitle("Cluster Charge  (ehp)");
+  clusterShapeHist_->GetYaxis()->SetTitle("ADC Counts");
+  clusterShapeHist_->GetZaxis()->SetTitle("Cluster Size");
+  clusterShapeHist_->GetXaxis()->SetTitleOffset(1.5); // Adjust the offset for the X-axis label
+  clusterShapeHist_->GetYaxis()->SetTitleOffset(1.5); // Adjust the offset for the Y-axis label
+  clusterShapeHist_->GetZaxis()->SetTitleOffset(1.5); // Adjust the offset for the Z-axis label 
+  
+}
 
-      recHitErrorsHist_ = new TH2F("recHitErrorsHist", "RecHit Errors", 100, -0.001, 0.2, 500, -0.5, 30.0);
-      recHitErrorsHist_->GetXaxis()->SetTitle("x (mm)");
-      recHitErrorsHist_->GetYaxis()->SetTitle("y (mm)");
-      
-      recHitPositionHist_ = new TH2F("recHitPositionHist", "RecHit Position", 100, -5.5, 5.5, 100, -1.0, 1.0);
-      recHitPositionHist_->GetXaxis()->SetTitle("x (mm)");
-      recHitPositionHist_->GetYaxis()->SetTitle("y (mm)");
-      
-      recHitPositionGlobalHist_ = new TH3F("recHitPositionGlobalHist", "Global Position Rec Strip Hits", 400, -200.0, 200.0, 400, -200.0, 200.0, 600, -700.0, 700.0);
-      recHitPositionGlobalHist_->GetXaxis()->SetTitle("x (mm)");
-      recHitPositionGlobalHist_->GetYaxis()->SetTitle("y (mm)");
-      recHitPositionGlobalHist_->GetZaxis()->SetTitle("z (mm)");
-
-      clusterShapeHist_ = new TH3F("clusterShapeHist", "Cluster Shape", 1500, 0, 1500, 256, 0, 256, 10, 0, 10);
-      clusterShapeHist_->GetXaxis()->SetTitle("Cluster Charge  (ehp)");
-      clusterShapeHist_->GetYaxis()->SetTitle("ADC Counts");
-      clusterShapeHist_->GetZaxis()->SetTitle("Cluster Size");
-      clusterShapeHist_->GetXaxis()->SetTitleOffset(1.5); // Adjust the offset for the X-axis label
-      clusterShapeHist_->GetYaxis()->SetTitleOffset(1.5); // Adjust the offset for the Y-axis label
-      clusterShapeHist_->GetZaxis()->SetTitleOffset(1.5); // Adjust the offset for the Z-axis label 
-
-    }
-    
-    // ------------ method called once each job just after ending the event loop  ------------
-    void RecHitAnalyzer::endJob() {
-      TCanvas* canvas_recHitPosition = new TCanvas("canvas_recHitPosition", "RecHit Position", 800, 600);
-      TCanvas* canvas_detIdMapping = new TCanvas("canvas_detIdMapping", "DetId Mapping", 1000, 600);
-      TCanvas* canvas_recHitErrors = new TCanvas("canvas_recHitErrors", "RecHit Errors", 800, 600);
-      TCanvas* canvas_clusterShapeHist = new TCanvas("canvas_clusterShapeHist", "Cluster Shape", 1000, 600);
-      TCanvas* canvas_recHitPositionGlobalHist = new TCanvas("canvas_recHitPositionGlobalHist", "Global Position Strip Rec Hits", 1000, 600);
-      plotProjectionsGlobalPosition();
-      plotProjectionsClusterShape();
-
-      canvas_recHitPosition->cd();
-      // Draw the histogram on the canvas                                                                                                                                          
-      recHitPositionHist_->Draw("hist");
-      // Save the canvas as a PNG image                                                                                                                                        
-      canvas_recHitPosition->SaveAs("recHitPosition.png");                                                                                                                                delete canvas_recHitPosition;
-
-      // Draw the histogram on the canvas                                                    
-      canvas_recHitPositionGlobalHist->cd();                                                                                           
-      recHitPositionGlobalHist_->Draw();
-      canvas_recHitPositionGlobalHist->SaveAs("recHitGlobalPosition.png");
-      delete canvas_recHitPositionGlobalHist;
-
-      canvas_detIdMapping->cd();
-      detIdMappingHist_->Draw("hist");
-      // Save the canvas as a PNG image                                                                                                                                              
-      canvas_detIdMapping->SaveAs("detIdMapping.png");
-      delete canvas_detIdMapping;                                                                                                                                                                 
-      // Save the canvas as a PNG image                                                                                                                                                                 
-      canvas_recHitErrors->cd();
-      recHitErrorsHist_->Draw("hist");
-      canvas_recHitErrors->SaveAs("recHitErrors.png");
-      delete canvas_recHitErrors;
-      // Save the canvas as a PNG image                                                                                                                                                                 
-      canvas_clusterShapeHist->cd();
-      TPaveStats* stats = dynamic_cast<TPaveStats*>(clusterShapeHist_->GetListOfFunctions()->FindObject("stats"));
-      // Relocate the stats box
-      if (stats) {
-	stats->SetX1NDC(0.25); // Set the new X-coordinate of the lower edge
-	stats->SetX2NDC(0.55); // Set the new X-coordinate of the upper edge
-	stats->SetY1NDC(0.75); // Set the new Y-coordinate of the lower edge
-	stats->SetY2NDC(0.95); // Set the new Y-coordinate of the upper edge
-	stats->Draw();
-	canvas_clusterShapeHist->Update();
-	}
-      clusterShapeHist_->Draw();
-      canvas_clusterShapeHist->SaveAs("clusterShapeHist.png"); 
-      delete canvas_clusterShapeHist;
-
-      TFile output("RecHitAnalyzer.root", "RECREATE");
-      recHitPositionHist_->Write();
-      recHitPositionGlobalHist_->Write();
-      clusterShapeHist_->Write();
-      recHitErrorsHist_->Write();
-      detIdMappingHist_->Write();
-      output.Close();
+// ------------ method called once each job just after ending the event loop  ------------
+void RecHitAnalyzer::endJob() {
+  TCanvas* canvas_recHitPosition = new TCanvas("canvas_recHitPosition", "RecHit Position", 800, 600);
+  TCanvas* canvas_detIdMapping = new TCanvas("canvas_detIdMapping", "DetId Mapping", 1000, 600);
+  TCanvas* canvas_recHitErrors = new TCanvas("canvas_recHitErrors", "RecHit Errors", 800, 600);
+  TCanvas* canvas_clusterShapeHist = new TCanvas("canvas_clusterShapeHist", "Cluster Shape", 1000, 600);
+  TCanvas* canvas_recHitPositionGlobalHist = new TCanvas("canvas_recHitPositionGlobalHist", "Global Position Strip Rec Hits", 1000, 600);
+  for (const auto& pair : detIdToSequentialNumber_) {
+    //std::cout << "DetId of each RecHits: " << pair.first << " Sequential Number: " << pair.second  << " Last Sequential Number: " << sequentialNumber_ <<std::endl;                                      
+    if(pair.first > maxId) maxId = pair.first;
+    if(pair.first < minId) minId = pair.first;
+  }
+  detIdMappingHist_ = new TGraph();
+  detIdMappingHist_->SetTitle("Det Id Mapping");
+  detIdMappingHist_->GetXaxis()->SetTitle("Sequential Number");
+  detIdMappingHist_->GetYaxis()->SetTitle("DetId");
+  //detIdMappingHist_->SetMarkerStyle(20); 
+  //detIdMappingHist_->SetMarkerColor(kBlack);
+  plotDetIdMapping(detIdToSequentialNumber_);
+  plotProjectionsGlobalPosition();
+  plotProjectionsClusterShape();
+  
+  canvas_recHitPosition->cd();
+  // Draw the histogram on the canvas                                                                                                                                          
+  recHitPositionHist_->Draw("hist");
+  // Save the canvas as a PNG image                                                                                                                                        
+  canvas_recHitPosition->SaveAs("recHitPosition.png");                                                                                                    delete canvas_recHitPosition;
+  
+  // Draw the histogram on the canvas                                                    
+  canvas_recHitPositionGlobalHist->cd();                                                                                           
+  recHitPositionGlobalHist_->Draw();
+  canvas_recHitPositionGlobalHist->SaveAs("recHitGlobalPosition.png");
+  delete canvas_recHitPositionGlobalHist;
+  
+  canvas_detIdMapping->cd();
+  detIdMappingHist_->SetMarkerStyle(5);
+  detIdMappingHist_->SetMarkerSize(0.3);
+  detIdMappingHist_->SetMarkerColor(kRed);
+  detIdMappingHist_->Draw("AP");
+  // Save the canvas as a PNG image                                                                                                                                              
+  canvas_detIdMapping->SaveAs("detIdMapping.png");
+  delete canvas_detIdMapping;                                                                                                                                                                 
+  // Save the canvas as a PNG image                                                                                                                                                                 
+  canvas_recHitErrors->cd();
+  recHitErrorsHist_->Draw("hist");
+  canvas_recHitErrors->SaveAs("recHitErrors.png");
+  delete canvas_recHitErrors;
+  // Save the canvas as a PNG image                                                                                                                                                                 
+  canvas_clusterShapeHist->cd();
+  TPaveStats* stats = dynamic_cast<TPaveStats*>(clusterShapeHist_->GetListOfFunctions()->FindObject("stats"));
+  // Relocate the stats box
+  if (stats) {
+    stats->SetX1NDC(0.25); // Set the new X-coordinate of the lower edge
+    stats->SetX2NDC(0.55); // Set the new X-coordinate of the upper edge
+    stats->SetY1NDC(0.75); // Set the new Y-coordinate of the lower edge
+    stats->SetY2NDC(0.95); // Set the new Y-coordinate of the upper edge
+    stats->Draw();
+    canvas_clusterShapeHist->Update();
+  }
+  clusterShapeHist_->Draw();
+  canvas_clusterShapeHist->SaveAs("clusterShapeHist.png"); 
+  delete canvas_clusterShapeHist;
+  
+  TFile output("RecHitAnalyzer.root", "RECREATE");
+  recHitPositionHist_->Write();
+  recHitPositionGlobalHist_->Write();
+  clusterShapeHist_->Write();
+  recHitErrorsHist_->Write();
+  detIdMappingHist_->Write();
+  output.Close();
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
